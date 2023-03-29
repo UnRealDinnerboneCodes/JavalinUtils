@@ -19,7 +19,9 @@ public class InfluxPlugin implements Plugin {
 
     private static final Logger LOGGER = LogHelper.getLogger();
     private final WriteApiBlocking writeApiBlocking;
+    private final InfluxConfig influxConfig;
     public InfluxPlugin(InfluxConfig influxConfig) {
+        this.influxConfig = influxConfig;
         InfluxDBClientOptions builder = InfluxDBClientOptions
                 .builder()
                 .url(influxConfig.getUrl())
@@ -40,19 +42,33 @@ public class InfluxPlugin implements Plugin {
                 ctx.headerMap().forEach((s, strings) -> headerBuilder.append("\t").append(s).append(": ").append(strings).append("\n"));
                 LOGGER.info(headerBuilder.toString());
             }
-            String ip = ctx.header("X-Forwarded-For");
+            String ip = ctx.header("Cf-Connecting-Ip");
             if(ip == null || ip.isEmpty()) {
                 ip = ctx.ip();
             }
+            String country = ctx.header("Cf-Ipcountry");
+            String continent = ctx.header("Cf-Continent");
             String userAgent = ctx.header("User-Agent");
             Point point = Point.measurement("requests")
                     .addField("execution_time", executionTimeMs)
                     .addTag("ip", String.valueOf(Objects.hashCode(ip)))
+                    .addTag("country", country)
+                    .addTag("continent", continent)
                     .addTag("user_agent", userAgent)
                     .addTag("path", ctx.path())
                     .addTag("status", String.valueOf(ctx.status().getCode()))
                     .addTag("method", ctx.method().name().toLowerCase())
                     .time(Instant.now(), WritePrecision.MS);
+            if(influxConfig.isEnableAdvancedLocation()) {
+                String latitude = ctx.header("Cf-Iplatitude");
+                String longitude = ctx.header("Cf-Iplongitude");
+                String city = ctx.header("Cf-Ipcity");
+                if(latitude != null && longitude != null && city != null) {
+                    point = point.addField("latitude", latitude)
+                            .addField("longitude", longitude)
+                            .addField("city", city);
+                }
+            }
             writeApiBlocking.writePoint(point);
         });
     }
