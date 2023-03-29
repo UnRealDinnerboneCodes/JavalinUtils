@@ -6,15 +6,18 @@ import com.influxdb.client.InfluxDBClientOptions;
 import com.influxdb.client.WriteApiBlocking;
 import com.influxdb.client.domain.WritePrecision;
 import com.influxdb.client.write.Point;
+import com.unrealdinnerbone.unreallib.LogHelper;
 import io.javalin.Javalin;
 import io.javalin.plugin.Plugin;
 import org.jetbrains.annotations.NotNull;
+import org.slf4j.Logger;
 
 import java.time.Instant;
 import java.util.Objects;
 
 public class InfluxPlugin implements Plugin {
 
+    private static final Logger LOGGER = LogHelper.getLogger();
     private final WriteApiBlocking writeApiBlocking;
     public InfluxPlugin(InfluxConfig influxConfig) {
         InfluxDBClientOptions builder = InfluxDBClientOptions
@@ -31,6 +34,12 @@ public class InfluxPlugin implements Plugin {
     @Override
     public void apply(@NotNull Javalin javalin) {
         javalin.cfg.requestLogger.http((ctx, executionTimeMs) -> {
+            String doDebugHeaders = ctx.queryParam("doDebugHeaders");
+            if(doDebugHeaders != null && doDebugHeaders.equalsIgnoreCase("true")) {
+                StringBuilder headerBuilder = new StringBuilder("Headers: \n");
+                ctx.headerMap().forEach((s, strings) -> headerBuilder.append("\t").append(s).append(": ").append(strings).append("\n"));
+                LOGGER.info(headerBuilder.toString());
+            }
             String ip = ctx.header("X-Forwarded-For");
             if(ip == null || ip.isEmpty()) {
                 ip = ctx.ip();
