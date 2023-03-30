@@ -36,6 +36,7 @@ public class InfluxPlugin implements Plugin {
     @Override
     public void apply(@NotNull Javalin javalin) {
         javalin.cfg.requestLogger.http((ctx, executionTimeMs) -> {
+            LOGGER.info("{} {} {}ms", ctx.method(), ctx.path(), executionTimeMs);
             String doDebugHeaders = ctx.queryParam("doDebugHeaders");
             if(doDebugHeaders != null && doDebugHeaders.equalsIgnoreCase("true")) {
                 StringBuilder headerBuilder = new StringBuilder("Headers: \n");
